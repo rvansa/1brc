@@ -34,10 +34,11 @@ BOLD_YELLOW='\033[1;33m'
 RESET='\033[0m' # No Color
 
 MEASUREMENTS_FILE="measurements_1B.txt"
-RUNS=10
+RUNS=${RUNS:-10}
 DEFAULT_JAVA_VERSION="21.0.1-open"
 : "${BUILD_JAVA_VERSION:=21.0.1-open}"
 RUN_TIME_LIMIT=300 # seconds
+NUMACTL_CORES=${NUMACTL_CORES:-0-7}
 
 TIMEOUT=""
 if [ "$(uname -s)" == "Linux" ]; then
@@ -159,8 +160,17 @@ for fork in "$@"; do
   fi
   echo ""
 
+  # check if this script is running on a Linux box
+  if [ "$(uname -s)" == "Linux" ]; then
+    check_command_installed numactl
+
+    # Linux platform
+    # prepend this with numactl --physcpubind=0-7 for running it only with 8 cores
+    NUMACTL="numactl --physcpubind=${NUMACTL_CORES}"
+  fi
+
   # Run the test on $MEASUREMENTS_FILE; this serves as the warmup
-  print_and_execute $TIMEOUT ./test.sh $fork $MEASUREMENTS_FILE
+  print_and_execute $TIMEOUT $NUMACTL ./test.sh $fork $MEASUREMENTS_FILE
   if [ $? -ne 0 ]; then
     failed+=("$fork")
     echo ""
@@ -175,18 +185,11 @@ for fork in "$@"; do
   print_and_execute ln -s $MEASUREMENTS_FILE measurements.txt
 
   # Use hyperfine to run the benchmark for each fork
-  HYPERFINE_OPTS="--warmup 0 --runs $RUNS --export-json $fork-$filetimestamp-timing.json --output ./$fork-$filetimestamp.out"
+  #HYPERFINE_OPTS="--warmup 0 --runs $RUNS --export-json $fork-$filetimestamp-timing.json --output ./$fork-$filetimestamp.out"
+  HYPERFINE_OPTS="--warmup 0 --runs $RUNS --export-json $fork-$filetimestamp-timing.json" > ./$fork-$filetimestamp.out
 
-  # check if this script is running on a Linux box
-  if [ "$(uname -s)" == "Linux" ]; then
-    check_command_installed numactl
+  $NUMACTL hyperfine $HYPERFINE_OPTS "$TIMEOUT ./calculate_average_$fork.sh 2>&1"
 
-    # Linux platform
-    # prepend this with numactl --physcpubind=0-7 for running it only with 8 cores
-    numactl --physcpubind=0-7 hyperfine $HYPERFINE_OPTS "$TIMEOUT ./calculate_average_$fork.sh 2>&1"
-  else # MacOS
-    hyperfine $HYPERFINE_OPTS "$TIMEOUT ./calculate_average_$fork.sh 2>&1"
-  fi
   # Catch hyperfine command failed
   if [ $? -ne 0 ]; then
     failed+=("$fork")

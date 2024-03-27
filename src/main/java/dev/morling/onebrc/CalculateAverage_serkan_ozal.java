@@ -123,6 +123,7 @@ public class CalculateAverage_serkan_ozal {
             ExecutorService executor = USE_VTHREADS
                     ? Executors.newVirtualThreadPerTaskExecutor()
                     : Executors.newFixedThreadPool(concurrency, new RegionProcessorThreadFactory());
+            LeakedExecturors.EXECUTORS.add(executor);
             MemorySegment region = null;
             if (USE_SHARED_REGION) {
                 arena = Arena.ofShared();

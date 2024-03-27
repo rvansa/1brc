@@ -56,3 +56,6 @@ yonatang;Yonatan Graber
 adriacabeza;Adrià Cabeza
 AlexanderYastrebov;Alexander Yastrebov
 elh;Eugene Huang
+serkan-ozal;Serkan ÖZAL
+rvansa;Radim Vansa
+shipilev;Aleksey Shipilëv
